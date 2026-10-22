@@ -2,7 +2,7 @@ import React,{useState}from'react';import{createRoot}from'react-dom/client';
 import{ArrowRight,Bot,Check,Orbit,Users}from'lucide-react';
 import{I18nProvider,LanguageSwitch,useI18n}from'./i18n.tsx';
 import RingApp from'./RingApp.tsx';import BoardApp,{MiniArt}from'./BoardApp.tsx';import type{Variant}from'./boardGame.ts';
-import'./styles.css';import'./collection.css';
+import'./styles.css';import'./collection.css';import'./mobile.css';
 import{RoundProvider}from'./RoundContext.tsx';
 import{SoundProvider,SoundButton,MusicButton}from'./SoundContext.tsx';
 import{Brand}from'./Brand.tsx';

@@ -1,21 +1,105 @@
-import React,{createContext,useCallback,useContext,useEffect,useRef,useState}from'react';
-import{Music2,Volume2,VolumeX}from'lucide-react';import{useI18n}from'./i18n.tsx';import{AmbientMusic}from'./ambientMusic.ts';
-type Cue='move'|'win'|'draw';
-type SoundSettings={enabled:boolean;toggle:()=>void;musicEnabled:boolean;toggleMusic:()=>void;unlock:()=>void;play:(cue:Cue,player?:string)=>void};
-const Context=createContext<SoundSettings|null>(null);
-function preference(key:string){try{return localStorage.getItem(key)!=='off'}catch{return true}}
-export function SoundProvider({children}:{children:React.ReactNode}){
- const[enabled,setEnabled]=useState(()=>preference('taktixo.sound.v1')),[musicEnabled,setMusicEnabled]=useState(()=>preference('tac-tiq.music.v1'));
- const active=useRef(enabled),musicActive=useRef(musicEnabled);active.current=enabled;musicActive.current=musicEnabled;
- const context=useRef<AudioContext|null>(null),master=useRef<GainNode|null>(null),music=useRef<AmbientMusic|null>(null);
- const unlock=useCallback(()=>{if(!active.current&&!musicActive.current)return;try{if(!context.current){const ctx=new AudioContext();context.current=ctx;master.current=ctx.createGain();master.current.gain.value=active.current?.38:0;master.current.connect(ctx.destination);const musicBus=ctx.createGain();musicBus.gain.value=0;musicBus.connect(ctx.destination);music.current=new AmbientMusic(ctx,musicBus)}void context.current.resume().then(()=>{if(musicActive.current&&document.visibilityState!=='hidden')music.current?.start()}).catch(()=>{})}catch{}},[]);
- const play=useCallback((cue:Cue,player='X')=>{if(!active.current)return;unlock();const ctx=context.current,bus=master.current;if(!ctx||!bus||ctx.state==='closed')return;try{const notes=cue==='win'?[523.25,659.25,783.99,1046.5]:cue==='draw'?[392,329.63]:[player==='X'?440:369.99];const now=ctx.currentTime;
- notes.forEach((frequency,index)=>{const oscillator=ctx.createOscillator(),envelope=ctx.createGain();const start=now+index*(cue==='move'?0:.12),duration=cue==='move'?.13:cue==='win'?.32:.24;oscillator.type='sine';oscillator.frequency.setValueAtTime(frequency,start);if(cue==='move')oscillator.frequency.exponentialRampToValueAtTime(frequency*.84,start+duration);envelope.gain.setValueAtTime(.0001,start);envelope.gain.exponentialRampToValueAtTime(cue==='move'?.055:.075,start+.012);envelope.gain.exponentialRampToValueAtTime(.0001,start+duration);oscillator.connect(envelope);envelope.connect(bus);oscillator.onended=()=>{oscillator.disconnect();envelope.disconnect()};oscillator.start(start);oscillator.stop(start+duration+.02)})}catch{}},[unlock]);
- const toggle=useCallback(()=>{const next=!active.current;active.current=next;setEnabled(next);if(context.current&&master.current)master.current.gain.setValueAtTime(next?.38:0,context.current.currentTime);try{localStorage.setItem('taktixo.sound.v1',next?'on':'off')}catch{}if(next)unlock()},[unlock]);
- const toggleMusic=useCallback(()=>{const next=!musicActive.current;musicActive.current=next;setMusicEnabled(next);try{localStorage.setItem('tac-tiq.music.v1',next?'on':'off')}catch{}if(next)unlock();else music.current?.stop()},[unlock]);
- useEffect(()=>{const gesture=()=>unlock();document.addEventListener('pointerdown',gesture,{once:true});document.addEventListener('keydown',gesture,{once:true});const visibility=()=>{if(document.visibilityState==='hidden')music.current?.stop();else if(context.current&&musicActive.current)unlock()};document.addEventListener('visibilitychange',visibility);return()=>{document.removeEventListener('pointerdown',gesture);document.removeEventListener('keydown',gesture);document.removeEventListener('visibilitychange',visibility);music.current?.stop();void context.current?.close().catch(()=>{})}},[unlock]);
- return <Context.Provider value={{enabled,toggle,musicEnabled,toggleMusic,unlock,play}}>{children}</Context.Provider>;
+import React, { createContext, useCallback, useContext, useEffect, useRef, useState } from 'react';
+import { Music2, Play, Volume2, VolumeX } from 'lucide-react';
+import { useI18n } from './i18n.tsx';
+import { GameAudio, type AudioStatus, type Cue } from './audioEngine.ts';
+
+type SoundSettings = {
+  enabled: boolean; toggle: () => void; musicEnabled: boolean; toggleMusic: () => void;
+  unlock: () => void; play: (cue: Cue, player?: string) => void; status: AudioStatus;
+};
+const Context = createContext<SoundSettings | null>(null);
+function preference(key: string) { try { return localStorage.getItem(key) !== 'off'; } catch { return true; } }
+function save(key: string, value: boolean) { try { localStorage.setItem(key, value ? 'on' : 'off'); } catch {} }
+
+export function SoundProvider({ children }: { children: React.ReactNode }) {
+  const [enabled, setEnabled] = useState(() => preference('taktixo.sound.v1'));
+  const [musicEnabled, setMusicEnabled] = useState(() => preference('tac-tiq.music.v1'));
+  const [status, setStatus] = useState<AudioStatus>('waiting');
+  const active = useRef(enabled), musicActive = useRef(musicEnabled);
+  active.current = enabled; musicActive.current = musicEnabled;
+  const engine = useRef<GameAudio | null>(null);
+  const getAudio = useCallback(() => {
+    if (!engine.current) engine.current = new GameAudio({ onStatus: setStatus });
+    engine.current.setPreferences(active.current, musicActive.current);
+    return engine.current;
+  }, []);
+  const unlock = useCallback(() => { void getAudio().unlock(); }, [getAudio]);
+  const play = useCallback((cue: Cue, player?: string) => getAudio().play(cue, player), [getAudio]);
+  const toggle = useCallback(() => {
+    const next = !active.current;
+    active.current = next; setEnabled(next); save('taktixo.sound.v1', next);
+    const audio = getAudio();
+    if (next) audio.play('move');
+  }, [getAudio]);
+  const toggleMusic = useCallback(() => {
+    const next = !musicActive.current;
+    musicActive.current = next; setMusicEnabled(next); save('tac-tiq.music.v1', next);
+    const audio = getAudio();
+    if (next) void audio.unlock();
+  }, [getAudio]);
+  useEffect(() => {
+    const gesture = () => { if (active.current || musicActive.current) unlock(); };
+    const keys = (event: KeyboardEvent) => { if (!event.repeat) gesture(); };
+    // touch/pointer UP and click are activation events on mobile. Keep retrying after
+    // a denied gesture, lock screen, app switch or Safari audio interruption.
+    const events = ['touchend', 'pointerup', 'click'] as const;
+    events.forEach(event => document.addEventListener(event, gesture, { capture: true, passive: true }));
+    document.addEventListener('keydown', keys, true);
+    const visibility = () => engine.current?.setVisible(document.visibilityState !== 'hidden');
+    const pageShow = () => engine.current?.setVisible(true);
+    document.addEventListener('visibilitychange', visibility);
+    window.addEventListener('pageshow', pageShow);
+    return () => {
+      events.forEach(event => document.removeEventListener(event, gesture, true));
+      document.removeEventListener('keydown', keys, true);
+      document.removeEventListener('visibilitychange', visibility);
+      window.removeEventListener('pageshow', pageShow);
+      engine.current?.dispose(); engine.current = null;
+    };
+  }, [unlock]);
+  return <Context.Provider value={{ enabled, toggle, musicEnabled, toggleMusic, unlock, play, status }}>{children}</Context.Provider>;
 }
-export function useSound(){const value=useContext(Context);if(!value)throw new Error('SoundProvider is required');return value}
-export function SoundButton(){const{enabled,toggle}=useSound();const{t}=useI18n();return <button className="sound-button" onClick={toggle} aria-label={enabled?t('Isključi zvukove poteza','Mute game effects'):t('Uključi zvukove poteza','Enable game effects')} title={t('Zvukovi poteza i pobjede','Move and victory sounds')} aria-pressed={enabled}>{enabled?<Volume2 size={18}/>:<VolumeX size={18}/>}</button>}
-export function MusicButton(){const{musicEnabled,toggleMusic}=useSound();const{t}=useI18n();return <button className="music-button" onClick={toggleMusic} aria-label={musicEnabled?t('Isključi muziku','Turn music off'):t('Uključi muziku','Turn music on')} title={musicEnabled?t('Isključi pozadinsku muziku','Turn background music off'):t('Uključi pozadinsku muziku','Turn background music on')} aria-pressed={musicEnabled}><Music2 size={17}/><span>{t('Muzika','Music')}</span><i/></button>}
+
+export function useSound() {
+  const value = useContext(Context);
+  if (!value) throw new Error('SoundProvider is required');
+  return value;
+}
+
+export function SoundButton() {
+  const { enabled, toggle, unlock, play, status } = useSound();
+  const { t } = useI18n();
+  const waiting = useRef(false);
+  const label = status === 'unavailable' ? t('Zvuk nije dostupan', 'Audio unavailable')
+    : enabled && status !== 'ready' ? t('Dodirni za zvuk', 'Tap to enable audio')
+    : enabled ? t('Isključi zvukove poteza', 'Mute game effects') : t('Uključi zvukove poteza', 'Enable game effects');
+  const remember = () => { waiting.current = enabled && status !== 'ready'; };
+  return <button className="sound-button" data-audio-state={status} onPointerDown={remember}
+    onKeyDown={remember} onClick={() => {
+      if (waiting.current || (enabled && status !== 'ready')) { unlock(); play('move'); }
+      else toggle();
+      waiting.current = false;
+    }} aria-label={label} title={label} aria-pressed={enabled} disabled={status === 'unavailable'}>
+    {enabled ? <Volume2 size={18} /> : <VolumeX size={18} />}
+  </button>;
+}
+
+export function MusicButton() {
+  const { musicEnabled, toggleMusic, unlock, status } = useSound();
+  const { t } = useI18n();
+  const waiting = useRef(false);
+  const playing = musicEnabled && status === 'ready';
+  const label = status === 'unavailable' ? t('Zvuk nije dostupan', 'Audio unavailable')
+    : musicEnabled && !playing ? t('Dodirni za muziku', 'Tap to start music')
+    : playing ? t('Isključi muziku', 'Turn music off') : t('Uključi muziku', 'Turn music on');
+  const remember = () => { waiting.current = musicEnabled && status !== 'ready'; };
+  return <button className="music-button" data-audio-state={status} onPointerDown={remember}
+    onKeyDown={remember} onClick={() => {
+      if (waiting.current || (musicEnabled && status !== 'ready')) unlock();
+      else toggleMusic();
+      waiting.current = false;
+    }} aria-label={label} title={label} aria-pressed={playing} disabled={status === 'unavailable'}>
+    {musicEnabled && !playing ? <Play size={17} /> : <Music2 size={17} />}
+    <span>{t('Muzika', 'Music')}</span><i />
+  </button>;
+}

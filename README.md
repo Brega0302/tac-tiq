@@ -41,6 +41,16 @@ Classic rules show winning lines and a drawn board. Ultimate rules include an in
 
 The TAC - TIQ logo is shared by every game and returns to the dashboard. An unfinished game asks before leaving. Player cards show wins in the current mode. The expandable Overall scores section at the bottom combines every game, mode and legacy record; per-mode viewing and clearing remain available there.
 
+## Mobile play and Safari audio
+
+The header wraps into touch-sized controls, the collection uses compact cards, and player scores stay above Classic/Ultimate boards on narrow screens. Ring diameters and thickness scale together with their cell. Landscape layouts keep the board playable instead of shrinking it according to a short viewport height. Device safe areas and Safari text scaling are handled in `src/mobile.css`.
+
+Music waits for an interaction and its button shows a play icon until audio is ready. Touch-end, pointer-up and click gestures can retry a denied unlock. Audio is primed and resumed synchronously in the gesture handler, recovers after interruptions, and uses Safari's optional playback audio session where available. Music/effects remain independent; music pauses in the background and skips missed beats on resume. Device volume, output routing and older iOS silent-mode behavior still require a real-device check.
+
+Ultimate includes **Enlarge board**: choose a legal board (when free choice is allowed), then tap one of nine larger cells. The same rules engine validates both the overview and the enlarged view. After a move the dialog closes and the overview shows the next destination.
+
+See [mobile verification](docs/MOBILE-QA.md) for tested widths and the remaining physical iPhone checks.
+
 ## Languages and scores
 
 English is the default for a new visitor. The corner language selector offers English and Bosanski. Changing language preserves the active match; the choice is remembered on that browser.
@@ -78,12 +88,10 @@ To publish only the original Ring Arena, use that saved version. This folder con
 - `src/BoardApp.tsx`, `src/boardGame.ts`, `src/boardScores.ts`: Classic / Ultimate UI, pure game rules, AI and scores.
 - `src/i18n.tsx`: language provider and translations.
 - `src/rounds.ts`, `src/RoundContext.tsx`: alternating AI opening players and persistence.
-- `src/SoundContext.tsx`, `src/ambientMusic.ts`: independent music / effect controls and the ambient loop.
+- `src/SoundContext.tsx`, `src/audioEngine.ts`, `src/ambientMusic.ts`: independent music / effect controls and the ambient loop.
 - `src/Brand.tsx`, `src/AllScores.tsx`, `src/summary.ts`: shared dashboard navigation, inline result presentation and combined score history.
 - `src/GameRules.tsx`, `src/Pieces.tsx`: visual rulebook, interactive routing demo and metallic symbols.
-- `src/styles.css`, `src/collection.css`: responsive arena and collection styles.
+- `src/styles.css`, `src/collection.css`, `src/mobile.css`: responsive arena and collection styles.
 - `tests/`: terminal tests for winning patterns, legal moves, turn routing, draws, AI, score separation, persistence and resets.
 
 All fonts and visuals are rendered locally with CSS and icons. There are no external runtime services.
-
-
