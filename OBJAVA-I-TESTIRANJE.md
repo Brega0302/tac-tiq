@@ -10,9 +10,9 @@
 ## Besplatni link za prijatelje: GitHub Pages
 
 Repozitorij: https://github.com/Brega0302/tac-tiq
-Predviđena adresa nakon uspješne objave: https://brega0302.github.io/tac-tiq/
+Objavljena i provjerena adresa: https://brega0302.github.io/tac-tiq/
 
-U repozitoriju otvori Settings > Pages > Source: GitHub Actions. Workflow u .github/workflows/deploy.yml pri svakom pushu na main instalira zavisnosti, pokreće testove, pravi build za /tac-tiq/ i objavljuje dist. Status objave vidi se pod Actions. Link radi i kada je tvoj računar ugašen.
+GitHub Pages je već podešen na Settings > Pages > Source: GitHub Actions. Workflow u .github/workflows/deploy.yml pri svakom pushu na main instalira zavisnosti, pokreće testove, pravi build za /tac-tiq/ i objavljuje dist. Status objave vidi se pod Actions. Link radi i kada je tvoj računar ugašen.
 
 GitHub Pages je dostupan besplatno za javne repozitorije. Ako objava još nije zelena, javni link možda još ne radi. Izvor: https://docs.github.com/en/pages/getting-started-with-github-pages/creating-a-github-pages-site
 Vite podešavanja: https://vite.dev/guide/static-deploy.html
@@ -56,3 +56,4 @@ Službene upute:
 - Apple pravilo 4.2: https://developer.apple.com/app-store/review/guidelines/#minimum-functionality
 
 Javni repozitorij ne znači automatski da je kod pod MIT licencom. Licenca nije dodana; tu odluku možeš donijeti prije šire distribucije izvornog koda.
+

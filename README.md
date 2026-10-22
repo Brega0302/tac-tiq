@@ -2,6 +2,10 @@
 
 Three games, one arena. A browser game collection by Adin. React, TypeScript and Vite; no account, API keys or backend required.
 
+[**Play TAC - TIQ**](https://brega0302.github.io/tac-tiq/) · [Report a bug](https://github.com/Brega0302/tac-tiq/issues/new)
+
+![TAC - TIQ dashboard](docs/preview.png)
+
 ## Run locally
 
 Requires Node.js 22 or later.
@@ -81,4 +85,5 @@ To publish only the original Ring Arena, use that saved version. This folder con
 - `tests/`: terminal tests for winning patterns, legal moves, turn routing, draws, AI, score separation, persistence and resets.
 
 All fonts and visuals are rendered locally with CSS and icons. There are no external runtime services.
+
 
